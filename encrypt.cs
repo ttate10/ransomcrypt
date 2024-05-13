@@ -70,4 +70,45 @@ class Program
             }
         }
     }
+
+    static void EncryptFolder(string folderPath, string password, string hashFilePath, List<string> excludedExtensions)
+    {
+        try
+        {
+            // Encrypt files in the current folder
+            var files = Directory.GetFiles(folderPath);
+            Parallel.ForEach(files, file =>
+            {
+                if (file != hashFilePath && !excludedExtensions.Contains(Path.GetExtension(file)))
+                {
+                    try
+                    {
+                        EncryptFile(file, password);
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Console.WriteLine($"Access denied for file: {file}. Skipping...");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"An error occurred with file: {file}. Error: {ex.Message}");
+                    }
+                }
+            });
+
+            // Recursively encrypt files in all subdirectories
+            var subdirectories = Directory.GetDirectories(folderPath);
+            foreach (var directory in subdirectories)
+            {
+                EncryptFolder(directory, password, hashFilePath, excludedExtensions);
+            }
+
+            Console.WriteLine($"Encryption complete for folder: {folderPath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
 }
+
