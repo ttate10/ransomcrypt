@@ -110,5 +110,47 @@ class Program
             Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
-}
 
+    static void EncryptFile(string filePath, string password)
+    {
+        byte[] header = Encoding.UTF8.GetBytes("EncryptedFile00");
+        byte[] existingHeader = new byte[header.Length];
+
+        // Check if the file is already encrypted
+        using (var inputFile = File.OpenRead(filePath))
+        {
+            if (inputFile.Length > existingHeader.Length)
+            {
+                inputFile.Read(existingHeader, 0, existingHeader.Length);
+                if (existingHeader.SequenceEqual(header))
+                {
+                    Console.WriteLine($"File {filePath} is already encrypted. Skipping...");
+                    return;
+                }
+            }
+        }
+
+        // Proceed with encryption
+        byte[] salt = new byte[16];
+        new RNGCryptoServiceProvider().GetBytes(salt);
+        var key = new Rfc2898DeriveBytes(password, salt, 10000).GetBytes(32);
+
+        string tempFilePath = $"{filePath}.tmp"; // Temporary file for encrypted content
+
+        using (var symmetricKey = new RijndaelManaged { KeySize = 256, BlockSize = 128, Padding = PaddingMode.Zeros })
+        using (var inputFile = File.OpenRead(filePath))
+        using (var outputFile = File.Create(tempFilePath))
+        {
+            // Write header and salt to output file
+            outputFile.Write(header, 0, header.Length);
+            outputFile.Write(salt, 0, salt.Length);
+
+            using (var cryptoStream = new CryptoStream(outputFile, symmetricKey.CreateEncryptor(key, new byte[16]), CryptoStreamMode.Write))
+            {
+                inputFile.CopyTo(cryptoStream);
+            }
+        }
+
+        File.Replace(tempFilePath, filePath, null); // Replace the original file with the encrypted file
+    }
+}
