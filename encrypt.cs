@@ -11,7 +11,6 @@ using System.Threading;
 class Program
 {
     private static readonly Random random = new Random();
-
     static string GenerateRandomPassword(int length)
     {
         const string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
@@ -24,3 +23,17 @@ class Program
 
         return password.ToString();
     }
+
+    
+
+    static string ComputeHash(string input)
+    {
+        using (var sha256Hash = SHA256.Create())
+        {
+            byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(input));
+            return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
+        }
+    }
+}
+
+    
