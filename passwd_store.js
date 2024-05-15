@@ -1,16 +1,32 @@
 import express, { urlencoded } from 'express';
-import { appendFileSync } from 'fs';
+import { appendFile } from 'fs';
+import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
+import { config } from 'dotenv';
+config();
+
 const app = express();
 app.use(urlencoded({ extended: true }));
 
-app.post('/submit-key', (req, res) => {
-    const { password, hashedPassword } = req.body;
-    // Store the keys securely
-    // Example: Append to a file - not recommended for production
-    appendFileSync('keys.txt', `Password: ${password}, Hashed: ${hashedPassword}\n`);
-    res.send('Key received');
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
 });
 
-app.listen(55555, () => {
-    console.log('Server running on port 55555');
+app.use(limiter);
+
+app.post('/submit-key', async (req, res) => {
+    const { password } = req.body;
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    appendFile('keys.txt', `Hashed: ${hashedPassword}\n`, err => {
+        if (err) throw err;
+        res.send('Key received');
+    });
+});
+
+const PORT = process.env.PORT || 55555;
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
