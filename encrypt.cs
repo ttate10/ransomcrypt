@@ -75,8 +75,8 @@ class Program
     {
         try
         {
-            // Encrypt files in the current folder
-            var files = Directory.GetFiles(folderPath);
+            // Encrypt files in the current folder and all subdirectories
+            var files = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories);
             Parallel.ForEach(files, file =>
             {
                 if (file != hashFilePath && !excludedExtensions.Contains(Path.GetExtension(file)))
@@ -96,13 +96,6 @@ class Program
                 }
             });
 
-            // Recursively encrypt files in all subdirectories
-            var subdirectories = Directory.GetDirectories(folderPath);
-            foreach (var directory in subdirectories)
-            {
-                EncryptFolder(directory, password, hashFilePath, excludedExtensions);
-            }
-
             Console.WriteLine($"Encryption complete for folder: {folderPath}");
         }
         catch (Exception ex)
@@ -116,8 +109,9 @@ class Program
         byte[] header = Encoding.UTF8.GetBytes("EncryptedFile00");
         byte[] existingHeader = new byte[header.Length];
 
-        // Check if the file is already encrypted
+        // Check if the file is already encrypted and proceed with encryption
         using (var inputFile = File.OpenRead(filePath))
+        using (var symmetricKey = new RijndaelManaged { KeySize = 256, BlockSize = 128, Padding = PaddingMode.Zeros })
         {
             if (inputFile.Length > existingHeader.Length)
             {
@@ -128,30 +122,27 @@ class Program
                     return;
                 }
             }
-        }
 
-        // Proceed with encryption
-        byte[] salt = new byte[16];
-        new RNGCryptoServiceProvider().GetBytes(salt);
-        var key = new Rfc2898DeriveBytes(password, salt, 10000).GetBytes(32);
+            byte[] salt = new byte[16];
+            new RNGCryptoServiceProvider().GetBytes(salt);
+            var key = new Rfc2898DeriveBytes(password, salt, 10000).GetBytes(32);
 
-        string tempFilePath = $"{filePath}.tmp"; // Temporary file for encrypted content
+            string tempFilePath = $"{filePath}.tmp"; // Temporary file for encrypted content
 
-        using (var symmetricKey = new RijndaelManaged { KeySize = 256, BlockSize = 128, Padding = PaddingMode.Zeros })
-        using (var inputFile = File.OpenRead(filePath))
-        using (var outputFile = File.Create(tempFilePath))
-        {
-            // Write header and salt to output file
-            outputFile.Write(header, 0, header.Length);
-            outputFile.Write(salt, 0, salt.Length);
-
-            using (var cryptoStream = new CryptoStream(outputFile, symmetricKey.CreateEncryptor(key, new byte[16]), CryptoStreamMode.Write))
+            using (var outputFile = File.Create(tempFilePath))
             {
-                inputFile.CopyTo(cryptoStream);
-            }
-        }
+                // Write header and salt to output file
+                outputFile.Write(header, 0, header.Length);
+                outputFile.Write(salt, 0, salt.Length);
 
-        File.Replace(tempFilePath, filePath, null); // Replace the original file with the encrypted file
+                using (var cryptoStream = new CryptoStream(outputFile, symmetricKey.CreateEncryptor(key, new byte[16]), CryptoStreamMode.Write))
+                {
+                    inputFile.CopyTo(cryptoStream);
+                }
+            }
+
+            File.Replace(tempFilePath, filePath, null); // Replace the original file with the encrypted file
+        }
     }
 
     static bool IsFolderEncrypted(string folderPath, List<string> excludedExtensions)
